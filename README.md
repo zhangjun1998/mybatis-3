@@ -1,6 +1,6 @@
 简介
 ============================
-这里是 [『香蕉大魔王』](https://github.com/zhangjun1998) 的 Caffeine 源码解析，[原始项目地址](https://github.com/zhangjun1998/mybatis-3) 在这。
+这里是 [『香蕉大魔王』](https://github.com/zhangjun1998) 的 MyBatis-3 源码解析，[原始项目地址](https://github.com/zhangjun1998/mybatis-3) 在这。
 技术暂时还比较拙劣，可能有很多理解不到位或有出入的地方，所以源码注释仅供参考哈，如有错误还请指正，错误很多的话就别说了，请把一些优秀的博客地址贴给我，我爱学习。
 
 debug入口
