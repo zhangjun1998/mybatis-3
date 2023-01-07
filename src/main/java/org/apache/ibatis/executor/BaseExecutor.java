@@ -15,14 +15,6 @@
  */
 package org.apache.ibatis.executor;
 
-import static org.apache.ibatis.executor.ExecutionPlaceholder.EXECUTION_PLACEHOLDER;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.cache.impl.PerpetualCache;
 import org.apache.ibatis.cursor.Cursor;
@@ -44,6 +36,14 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.apache.ibatis.executor.ExecutionPlaceholder.EXECUTION_PLACEHOLDER;
+
 /**
  * @author Clinton Begin
  */
@@ -55,6 +55,8 @@ public abstract class BaseExecutor implements Executor {
   protected Executor wrapper;
 
   protected ConcurrentLinkedQueue<DeferredLoad> deferredLoads;
+  // 一级缓存，默认是Session级别的缓存(也可配置为Statement级别)，作用域在单个SqlSession中，每个SqlSession会持有一个Executor作为实际的执行器
+  // 一级缓存的目的是在单个SqlSession中执行有重复的查询语句时直接从缓存取出，不走DB，提高查询速度
   protected PerpetualCache localCache;
   protected PerpetualCache localOutputParameterCache;
   protected Configuration configuration;
@@ -113,6 +115,7 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+    // 执行修改操作时会清空一级缓存，防止查询到脏数据
     clearLocalCache();
     return doUpdate(ms, parameter);
   }
@@ -143,16 +146,20 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+
     if (queryStack == 0 && ms.isFlushCacheRequired()) {
       clearLocalCache();
     }
     List<E> list;
     try {
       queryStack++;
+      // 先使用cacheKey从一级缓存中查询
       list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
+      // 命中缓存，处理localOutputParameters
       if (list != null) {
         handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
       } else {
+        // 一级缓存中不存在，从数据库查
         list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
       }
     } finally {
@@ -164,6 +171,7 @@ public abstract class BaseExecutor implements Executor {
       }
       // issue #601
       deferredLoads.clear();
+      // 一级缓存为Statement级别，每次执行完语句都清空一级缓存
       if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
         // issue #482
         clearLocalCache();
@@ -238,8 +246,11 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Cannot commit, transaction is already closed");
     }
+    // 事务提交，清空一级缓存
     clearLocalCache();
+    // 批量执行
     flushStatements();
+    // 需要手动/强制提交时执行commit
     if (required) {
       transaction.commit();
     }
@@ -317,15 +328,23 @@ public abstract class BaseExecutor implements Executor {
     }
   }
 
+  /**
+   * 走数据库查询
+   */
   private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
     List<E> list;
+    // 先缓存占位符，用处我还没搞明白
     localCache.putObject(key, EXECUTION_PLACEHOLDER);
     try {
+      // 执行查询
       list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
     } finally {
+      // 移除缓存占位符
       localCache.removeObject(key);
     }
+    // 将实际结果存入缓存
     localCache.putObject(key, list);
+    // 存储过程需要单独处理出参
     if (ms.getStatementType() == StatementType.CALLABLE) {
       localOutputParameterCache.putObject(key, parameter);
     }

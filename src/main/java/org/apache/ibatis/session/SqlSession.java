@@ -15,13 +15,13 @@
  */
 package org.apache.ibatis.session;
 
+import org.apache.ibatis.cursor.Cursor;
+import org.apache.ibatis.executor.BatchResult;
+
 import java.io.Closeable;
 import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.ibatis.cursor.Cursor;
-import org.apache.ibatis.executor.BatchResult;
 
 /**
  * The primary Java interface for working with MyBatis.
@@ -268,6 +268,10 @@ public interface SqlSession extends Closeable {
   Configuration getConfiguration();
 
   /**
+   * 获取Mapper
+   * 通过SqlSession持有的Configuration对象获取到Mapper注册表，然后根据classType获取Mapper接口对应的MapperProxyFactory代理工厂
+   * 使用代理工厂MapperProxyFactory创建Mapper接口的代理对象MapperProxy进行返回
+   *
    * Retrieves a mapper.
    * @param <T> the mapper type
    * @param type Mapper interface class

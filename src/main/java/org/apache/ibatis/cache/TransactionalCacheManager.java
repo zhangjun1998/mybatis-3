@@ -15,16 +15,19 @@
  */
 package org.apache.ibatis.cache;
 
+import org.apache.ibatis.cache.decorators.TransactionalCache;
+
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.ibatis.cache.decorators.TransactionalCache;
-
 /**
+ * 二级事务缓存管理器
+ *
  * @author Clinton Begin
  */
 public class TransactionalCacheManager {
 
+  // 缓存Map，根据Cache查询到TransactionalCache，TransactionalCache是对Cache的一层包装(装饰器模式)，保证缓存不影响事务隔离的核心就在这
   private Map<Cache, TransactionalCache> transactionalCaches = new HashMap<Cache, TransactionalCache>();
 
   public void clear(Cache cache) {

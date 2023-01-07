@@ -15,11 +15,6 @@
  */
 package org.apache.ibatis.builder.xml;
 
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.Properties;
-import javax.sql.DataSource;
-
 import org.apache.ibatis.builder.BaseBuilder;
 import org.apache.ibatis.builder.BuilderException;
 import org.apache.ibatis.datasource.DataSourceFactory;
@@ -45,6 +40,11 @@ import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.LocalCacheScope;
 import org.apache.ibatis.transaction.TransactionFactory;
 import org.apache.ibatis.type.JdbcType;
+
+import javax.sql.DataSource;
+import java.io.InputStream;
+import java.io.Reader;
+import java.util.Properties;
 
 /**
  * @author Clinton Begin
@@ -95,6 +95,7 @@ public class XMLConfigBuilder extends BaseBuilder {
       throw new BuilderException("Each XMLConfigBuilder can only be used once.");
     }
     parsed = true;
+    // 从根节点 configuration 开始向下解析
     parseConfiguration(parser.evalNode("/configuration"));
     return configuration;
   }
@@ -102,20 +103,20 @@ public class XMLConfigBuilder extends BaseBuilder {
   private void parseConfiguration(XNode root) {
     try {
       //issue #117 read properties first
-      propertiesElement(root.evalNode("properties"));
+      propertiesElement(root.evalNode("properties")); // 外部配置
       Properties settings = settingsAsProperties(root.evalNode("settings"));
       loadCustomVfs(settings);
-      typeAliasesElement(root.evalNode("typeAliases"));
-      pluginElement(root.evalNode("plugins"));
+      typeAliasesElement(root.evalNode("typeAliases")); // 类型别名
+      pluginElement(root.evalNode("plugins")); // 一些插件，会被封装为InterceptorList到配置中
       objectFactoryElement(root.evalNode("objectFactory"));
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
       reflectorFactoryElement(root.evalNode("reflectorFactory"));
-      settingsElement(settings);
+      settingsElement(settings); // mybatis的一些配置设置，没有指定的会设置默认值，如 二级缓存、延迟加载等
       // read it after objectFactory and objectWrapperFactory issue #631
-      environmentsElement(root.evalNode("environments"));
+      environmentsElement(root.evalNode("environments")); // 会根据其子标签 transactionManager 和 dataSource 创建事务管理器和数据源，放到 Environment 中
       databaseIdProviderElement(root.evalNode("databaseIdProvider"));
-      typeHandlerElement(root.evalNode("typeHandlers"));
-      mapperElement(root.evalNode("mappers"));
+      typeHandlerElement(root.evalNode("typeHandlers")); // mybatis提供了一些默认的类型转换器用来对参数和结果做转换，但是如果需要执行一些额外操作可以自定义类型转换器
+      mapperElement(root.evalNode("mappers")); // 扫描指定的 Mapper 接口
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
     }

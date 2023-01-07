@@ -27,6 +27,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * Mapper注册表
+ * 保存了Mapper接口及其对应代理工厂的映射关系，在解析配置时就会完成映射关系的建立
+ *
  * @author Clinton Begin
  * @author Eduardo Macarron
  * @author Lasse Voss

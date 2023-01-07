@@ -15,15 +15,15 @@
  */
 package org.apache.ibatis.session;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.Properties;
-
 import org.apache.ibatis.builder.xml.XMLConfigBuilder;
 import org.apache.ibatis.exceptions.ExceptionFactory;
 import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.session.defaults.DefaultSqlSessionFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.util.Properties;
 
 /**
  * Builds {@link SqlSession} instances.
@@ -75,6 +75,8 @@ public class SqlSessionFactoryBuilder {
   public SqlSessionFactory build(InputStream inputStream, String environment, Properties properties) {
     try {
       XMLConfigBuilder parser = new XMLConfigBuilder(inputStream, environment, properties);
+      // 解析xml配置转为Configuration对象，该对象包含了所有的配置信息
+      // 构造SqlSessionFactory
       return build(parser.parse());
     } catch (Exception e) {
       throw ExceptionFactory.wrapException("Error building SqlSession.", e);
@@ -87,8 +89,13 @@ public class SqlSessionFactoryBuilder {
       }
     }
   }
-    
+
+  /**
+   * 构造SqlSessionFactory
+   * 构造器模式，大部分框架都会使用到这种设计模式
+   */
   public SqlSessionFactory build(Configuration config) {
+    // 使用默认的SqlSessionFactory
     return new DefaultSqlSessionFactory(config);
   }
 

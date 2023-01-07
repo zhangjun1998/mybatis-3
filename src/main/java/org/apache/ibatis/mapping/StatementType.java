@@ -16,8 +16,15 @@
 package org.apache.ibatis.mapping;
 
 /**
+ * 执行的Statement类型
+ *
  * @author Clinton Begin
  */
 public enum StatementType {
-  STATEMENT, PREPARED, CALLABLE
+  // 直接拼接sql
+  STATEMENT,
+  // 预编译
+  PREPARED,
+  // 存储过程
+  CALLABLE
 }

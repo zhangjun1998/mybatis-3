@@ -35,6 +35,8 @@ import java.lang.reflect.Type;
 import java.util.*;
 
 /**
+ * 对Mapper接口方法进行的封装，Method的执行会委托给MapperMethod处理
+ *
  * @author Clinton Begin
  * @author Eduardo Macarron
  * @author Lasse Voss
@@ -49,11 +51,20 @@ public class MapperMethod {
     this.method = new MethodSignature(config, mapperInterface, method);
   }
 
+  /**
+   * 执行Mapper方法调用
+   */
   public Object execute(SqlSession sqlSession, Object[] args) {
     Object result;
+
+    // 根据xml中sql标签类型决定具体的执行方式，最终都是调用sqlSession对象执行
     switch (command.getType()) {
+      // insert、update、delete直接调用sqlSession对象执行，只需要统计影响行数作为返回结果即可
       case INSERT: {
+        // Mapper方法中的参数解析，封装为Map<String, Object>，key=参数名称，value=参数值
+        // 这里参数名称的规则为：@Param注解 -> 实际名称(配置开启时) -> index
     	Object param = method.convertArgsToSqlCommandParam(args);
+        // 调用sqlSession执行
         result = rowCountResult(sqlSession.insert(command.getName(), param));
         break;
       }
@@ -67,27 +78,33 @@ public class MapperMethod {
         result = rowCountResult(sqlSession.delete(command.getName(), param));
         break;
       }
+      // Select比较麻烦，结果集可能是void/单个对象/List/Map/Cursor/自定义结果处理器ResultHandler等，所以需要特殊处理
       case SELECT:
         if (method.returnsVoid() && method.hasResultHandler()) {
           executeWithResultHandler(sqlSession, args);
           result = null;
         } else if (method.returnsMany()) {
+          // list
           result = executeForMany(sqlSession, args);
         } else if (method.returnsMap()) {
           result = executeForMap(sqlSession, args);
         } else if (method.returnsCursor()) {
           result = executeForCursor(sqlSession, args);
         } else {
+          // 单个对象
           Object param = method.convertArgsToSqlCommandParam(args);
           result = sqlSession.selectOne(command.getName(), param);
         }
         break;
+      // Flush注解，用来批量flush
       case FLUSH:
         result = sqlSession.flushStatements();
         break;
       default:
         throw new BindingException("Unknown execution method for: " + command.getName());
     }
+
+    // 结果集为null且方法返回类型是原始类型且不为void，抛异常
     if (result == null && method.getReturnType().isPrimitive() && !method.returnsVoid()) {
       throw new BindingException("Mapper method '" + command.getName() 
           + " attempted to return null from a method with a primitive return type (" + method.getReturnType() + ").");

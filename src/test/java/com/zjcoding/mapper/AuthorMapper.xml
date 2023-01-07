@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zjcoding.mapper.AuthorMapper">
+
+    <sql id="BaseColumnList">
+        id, username, password, email, bio, favourite_section
+    </sql>
+
+    <resultMap id="authorResultMap" type="com.zjcoding.entity.AuthorEntity">
+        <id column="id" property="id"/>
+        <result column="username" property="username" />
+        <result column="password" property="password"/>
+        <result column="email" property="email"/>
+        <result column="bio" property="bio"/>
+        <result column="favourite_section" javaType="org.apache.ibatis.domain.blog.Section"/>
+    </resultMap>
+
+    <select id="findById" resultMap="authorResultMap">
+        select
+            <include refid="BaseColumnList"/>
+        from
+            author
+        where
+            id = #{id}
+    </select>
+
+    <select id="listAll" resultType="com.zjcoding.entity.AuthorEntity">
+        select
+            <include refid="BaseColumnList"/>
+        from
+            author
+    </select>
+
+</mapper>

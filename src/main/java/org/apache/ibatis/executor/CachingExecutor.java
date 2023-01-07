@@ -15,9 +15,6 @@
  */
 package org.apache.ibatis.executor;
 
-import java.sql.SQLException;
-import java.util.List;
-
 import org.apache.ibatis.cache.Cache;
 import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.cache.TransactionalCacheManager;
@@ -32,13 +29,21 @@ import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 
+import java.sql.SQLException;
+import java.util.List;
+
 /**
+ * 开启二级缓存时会使用CachingExecutor，对实际调用的Executor做了一层包装，实现二级缓存
+ *
  * @author Clinton Begin
  * @author Eduardo Macarron
  */
 public class CachingExecutor implements Executor {
 
+  // 装饰器模式，实际调用的Executor
   private Executor delegate;
+
+  // 二级缓存事务管理器，保证事务未提交时查询不到缓存，事务提交时将数据刷入缓存，保证缓存不会影响事务的隔离性
   private TransactionalCacheManager tcm = new TransactionalCacheManager();
 
   public CachingExecutor(Executor delegate) {
@@ -78,8 +83,11 @@ public class CachingExecutor implements Executor {
 
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
+    // 根据参数获取绑定sql
     BoundSql boundSql = ms.getBoundSql(parameterObject);
+    // 根据mappedStatementId + offset + limit + SQL + queryParams + environment生成一个哈希值作为缓存key
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
+    // 执行查询
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 
@@ -92,20 +100,26 @@ public class CachingExecutor implements Executor {
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
       throws SQLException {
+    // 从MappedStatement获取二级缓存实例
     Cache cache = ms.getCache();
+    // 存在缓存实例，尝试走二级缓存查询
     if (cache != null) {
       flushCacheIfRequired(ms);
       if (ms.isUseCache() && resultHandler == null) {
         ensureNoOutParams(ms, parameterObject, boundSql);
         @SuppressWarnings("unchecked")
         List<E> list = (List<E>) tcm.getObject(cache, key);
+        // 二级缓存未命中，交给Executor执行后将返回结果存入缓存
         if (list == null) {
           list = delegate.<E> query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
           tcm.putObject(cache, key, list); // issue #578 and #116
         }
+        // 命中二级缓存，直接返回
         return list;
       }
     }
+
+    // 缓存实例不存在，直接走代理Executor查询
     return delegate.<E> query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 

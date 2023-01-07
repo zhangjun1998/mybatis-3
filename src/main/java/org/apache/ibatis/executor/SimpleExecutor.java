@@ -32,6 +32,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * 默认使用的就是SimpleExecutor，每次执行都会开启一个新的Statement对象，用完之后立刻关闭
+ *
  * @author Clinton Begin
  */
 public class SimpleExecutor extends BaseExecutor {
@@ -58,8 +60,11 @@ public class SimpleExecutor extends BaseExecutor {
     Statement stmt = null;
     try {
       Configuration configuration = ms.getConfiguration();
+      // 创建StatementHandler，用来执行语句
       StatementHandler handler = configuration.newStatementHandler(wrapper, ms, parameter, rowBounds, resultHandler, boundSql);
+      // 准备Statement，由StatementHandler类型决定生成何种类型的Statement，并且根据配置给Statement设置一些属性并填充参数
       stmt = prepareStatement(handler, ms.getStatementLog());
+      // 由具体的StatementHandler负责执行
       return handler.<E>query(stmt, resultHandler);
     } finally {
       closeStatement(stmt);
@@ -79,10 +84,15 @@ public class SimpleExecutor extends BaseExecutor {
     return Collections.emptyList();
   }
 
+  /**
+   * 准备Statement
+   */
   private Statement prepareStatement(StatementHandler handler, Log statementLog) throws SQLException {
     Statement stmt;
     Connection connection = getConnection(statementLog);
+    // 使用connection创建Statement并设置一些属性，如timeout、fetchSize
     stmt = handler.prepare(connection, transaction.getTimeout());
+    // 填充参数
     handler.parameterize(stmt);
     return stmt;
   }

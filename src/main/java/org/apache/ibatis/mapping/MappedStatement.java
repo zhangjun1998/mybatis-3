@@ -15,10 +15,6 @@
  */
 package org.apache.ibatis.mapping;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.ibatis.cache.Cache;
 import org.apache.ibatis.executor.keygen.Jdbc3KeyGenerator;
 import org.apache.ibatis.executor.keygen.KeyGenerator;
@@ -28,7 +24,13 @@ import org.apache.ibatis.logging.LogFactory;
 import org.apache.ibatis.scripting.LanguageDriver;
 import org.apache.ibatis.session.Configuration;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
+ * 对xml中sql信息的封装，包含方法id、sql类型、入参、出参、是否使用缓存、keyGenerator等属性
+ *
  * @author Clinton Begin
  */
 public final class MappedStatement {
@@ -41,7 +43,17 @@ public final class MappedStatement {
   private StatementType statementType;
   private ResultSetType resultSetType;
   private SqlSource sqlSource;
+
+  /**
+   * 二级缓存，namespace(Mapper)级别的缓存，多个SqlSession之间共享
+   * 采用TransactionalCacheManager来对事务缓存进行管理，保证不同SqlSession在执行事务时不会因为缓存影响事务的隔离级别
+   * MyBatis的二级缓存相对于一级缓存来说，实现了SqlSession之间缓存数据的共享，同时粒度更加的细，能够到namespace级别，通过Cache接口实现类不同的组合，对Cache的可控性也更强。
+   * 由于MyBatis是基于Mapper的DML操作来清理缓存的，因此MyBatis在多表查询时极大可能会出现脏数据，有设计上的缺陷，安全使用二级缓存的条件比较苛刻。
+   * 在分布式环境下，由于默认的MyBatis Cache实现都是基于本地的，分布式环境下必然会出现读取到脏数据，需要使用集中式缓存将MyBatis的Cache接口实现，有一定的开发成本，直接使用Redis、Memcached等分布式缓存可能成本更低，安全性也更高。
+   * 综上，二级缓存的使用环境太苛刻，直接禁用二级缓存吧
+   */
   private Cache cache;
+
   private ParameterMap parameterMap;
   private List<ResultMap> resultMaps;
   private boolean flushCacheRequired;

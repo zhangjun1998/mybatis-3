@@ -15,15 +15,15 @@
  */
 package org.apache.ibatis.cache.decorators;
 
+import org.apache.ibatis.cache.Cache;
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.logging.LogFactory;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
-
-import org.apache.ibatis.cache.Cache;
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 
 /**
  * The 2nd level cache transactional buffer.
@@ -40,9 +40,12 @@ public class TransactionalCache implements Cache {
 
   private static final Log log = LogFactory.getLog(TransactionalCache.class);
 
+  // 装饰器模式，包装实际持有的缓存
   private Cache delegate;
   private boolean clearOnCommit;
+  // 正处于事务中的缓存，事务提交时会刷入缓存到delegate，key=CacheKey，value=缓存值
   private Map<Object, Object> entriesToAddOnCommit;
+  // 缺失的缓存CacheKey
   private Set<Object> entriesMissedInCache;
 
   public TransactionalCache(Cache delegate) {
@@ -65,7 +68,9 @@ public class TransactionalCache implements Cache {
   @Override
   public Object getObject(Object key) {
     // issue #116
+    // 从实际缓存delegate中查询
     Object object = delegate.getObject(key);
+    // 缓存缺失，标记key为缺失的缓存
     if (object == null) {
       entriesMissedInCache.add(key);
     }
@@ -98,11 +103,15 @@ public class TransactionalCache implements Cache {
     entriesToAddOnCommit.clear();
   }
 
+  // 事务提交时触发
   public void commit() {
+    // 默认在事务提交时不会清除缓存
     if (clearOnCommit) {
       delegate.clear();
     }
+    // 刷入缓存
     flushPendingEntries();
+    // 清空当前数据
     reset();
   }
 
@@ -118,9 +127,11 @@ public class TransactionalCache implements Cache {
   }
 
   private void flushPendingEntries() {
+    // 事务已提交，刷入事务缓存到实际缓存delegate中
     for (Map.Entry<Object, Object> entry : entriesToAddOnCommit.entrySet()) {
       delegate.putObject(entry.getKey(), entry.getValue());
     }
+    // 缺失的缓存，将实际缓存delegate中的值置为null
     for (Object entry : entriesMissedInCache) {
       if (!entriesToAddOnCommit.containsKey(entry)) {
         delegate.putObject(entry, null);

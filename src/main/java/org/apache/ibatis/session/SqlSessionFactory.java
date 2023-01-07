@@ -18,6 +18,8 @@ package org.apache.ibatis.session;
 import java.sql.Connection;
 
 /**
+ * SqlSessionFactory的作用就是根据数据源/连接创建SqlSession
+ *
  * Creates an {@link SqlSession} out of a connection or a DataSource
  * 
  * @author Clinton Begin

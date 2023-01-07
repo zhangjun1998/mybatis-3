@@ -15,9 +15,6 @@
  */
 package org.apache.ibatis.session.defaults;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-
 import org.apache.ibatis.exceptions.ExceptionFactory;
 import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.executor.Executor;
@@ -31,7 +28,12 @@ import org.apache.ibatis.transaction.Transaction;
 import org.apache.ibatis.transaction.TransactionFactory;
 import org.apache.ibatis.transaction.managed.ManagedTransactionFactory;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 /**
+ * 默认的SqlSessionFactory
+ *
  * @author Clinton Begin
  */
 public class DefaultSqlSessionFactory implements SqlSessionFactory {
@@ -87,18 +89,28 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
     return configuration;
   }
 
+  /**
+   * 创建SqlSession
+   */
   private SqlSession openSessionFromDataSource(ExecutorType execType, TransactionIsolationLevel level, boolean autoCommit) {
     Transaction tx = null;
     try {
+      // 配置对象中获取Environment，包含数据源和事务管理器的配置
       final Environment environment = configuration.getEnvironment();
+      // 事务工厂，Transaction对象提供了打开/关闭连接，提交/回滚事务的方法
+      // 使用Spring+MyBatis时没必要配置，会直接使用Spring的数据源和事务管理
       final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
+      // 将DataSource、事务隔离级别等封装到Transaction中，方便进行事务控制
       tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
+      // 创建执行器，SqlSession执行sql语句实际是委派给Executor执行的，将Transaction对象传入Executor是方便Executor将主逻辑之外的事务操作委派给Transaction对象处理
       final Executor executor = configuration.newExecutor(tx, execType);
+      // 最终的SqlSession中持有Configuration、Executor、Transaction等对象
       return new DefaultSqlSession(configuration, executor, autoCommit);
     } catch (Exception e) {
       closeTransaction(tx); // may have fetched a connection so lets call close()
       throw ExceptionFactory.wrapException("Error opening session.  Cause: " + e, e);
     } finally {
+      // ErrorContext中使用了ThreadLocal来进行线程数据隔离，因此每次打开连接需要重置该线程之前遗留的数据
       ErrorContext.instance().reset();
     }
   }

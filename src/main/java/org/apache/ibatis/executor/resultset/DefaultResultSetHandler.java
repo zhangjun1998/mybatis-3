@@ -62,6 +62,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * 默认的结果集处理器
+ *
  * @author Clinton Begin
  * @author Eduardo Macarron
  * @author Iwao AVE!
@@ -175,6 +177,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
   //
   // HANDLE RESULT SETS
   //
+  // 处理结果集
   @Override
   public List<Object> handleResultSets(Statement stmt) throws SQLException {
     ErrorContext.instance().activity("handling results").object(mappedStatement.getId());
@@ -187,6 +190,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
     List<ResultMap> resultMaps = mappedStatement.getResultMaps();
     int resultMapCount = resultMaps.size();
     validateResultMapsCount(rsw, resultMapCount);
+    // 处理结果集，一般也就一个结果集
     while (rsw != null && resultMapCount > resultSetCount) {
       ResultMap resultMap = resultMaps.get(resultSetCount);
       handleResultSet(rsw, resultMap, multipleResults, null);
@@ -287,14 +291,19 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 
   private void handleResultSet(ResultSetWrapper rsw, ResultMap resultMap, List<Object> multipleResults, ResultMapping parentMapping) throws SQLException {
     try {
+      // 对嵌套ResultMap的处理
       if (parentMapping != null) {
         handleRowValues(rsw, resultMap, null, RowBounds.DEFAULT, parentMapping);
       } else {
+        // resultHandler为null的时候使用默认的结果处理器进行处理
         if (resultHandler == null) {
           DefaultResultHandler defaultResultHandler = new DefaultResultHandler(objectFactory);
+          // 处理结果集
           handleRowValues(rsw, resultMap, defaultResultHandler, rowBounds, null);
+          // 需要返回的转换后的执行结果
           multipleResults.add(defaultResultHandler.getResultList());
         } else {
+          // 使用自定义结果处理器处理
           handleRowValues(rsw, resultMap, resultHandler, rowBounds, null);
         }
       }
@@ -319,6 +328,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
       checkResultHandler();
       handleRowValuesForNestedResultMap(rsw, resultMap, resultHandler, rowBounds, parentMapping);
     } else {
+      // 单个ResultMap走这里处理
       handleRowValuesForSimpleResultMap(rsw, resultMap, resultHandler, rowBounds, parentMapping);
     }
   }
@@ -342,9 +352,12 @@ public class DefaultResultSetHandler implements ResultSetHandler {
       throws SQLException {
     DefaultResultContext<Object> resultContext = new DefaultResultContext<Object>();
     skipRows(rsw.getResultSet(), rowBounds);
+    // 循环处理sql返回的结果集
     while (shouldProcessMoreRows(resultContext, rowBounds) && rsw.getResultSet().next()) {
       ResultMap discriminatedResultMap = resolveDiscriminatedResultMap(rsw.getResultSet(), resultMap, null);
+      // 根据结果集和ResultMap转换出最终需要返回的对象
       Object rowValue = getRowValue(rsw, discriminatedResultMap);
+      // 存储返回对象到ResultHandler
       storeObject(resultHandler, resultContext, rowValue, parentMapping, rsw.getResultSet());
     }
   }
